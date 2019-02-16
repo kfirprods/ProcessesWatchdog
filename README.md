@@ -1,9 +1,12 @@
 # ProcessesWatchdog
-A C# library to monitor the opening and closing of specific Windows processes
+A C# library to monitor the opening and closing of specific Windows processes.
+
+Get it on NuGET: https://www.nuget.org/packages/ProcessesWatchdog
+
 
 Example (available under ProcessesWatchdogSample):
 
-```
+```C#
 using System;
 using ProcessesWatchdog;
 
