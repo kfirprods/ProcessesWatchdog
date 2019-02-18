@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using ProcessesWatchdog;
 
 namespace ProcessesWatchdogSample
@@ -7,20 +8,40 @@ namespace ProcessesWatchdogSample
     {
         public static void Main(string[] args)
         {
-            // Watch for the windows calculator process
-            var watchdog = new ProcessWatchdog("Calculator");
-            watchdog.OnProcessOpened += () => { Console.WriteLine("Calculator.exe is running"); };
-            watchdog.OnProcessClosed += () => { Console.WriteLine("Calculator.exe is terminated"); };
-            watchdog.Start();
+            // Create multiple watch dogs for various processes
+            var watchedProcessNames = new[] {"Calculator", "mspaint", "Steam", "Spotify"};
+            var watchdogs = watchedProcessNames.Select(CreateLoggingWatchDog).ToArray();
+            
+            foreach (var watchdog in watchdogs)
+            {
+                watchdog.Start();
+            }
 
-            Console.WriteLine("Press any key to stop the watch dog");
+            Console.WriteLine("Press any key to stop the watch dogs");
             Console.ReadKey();
 
-            Console.WriteLine("Stopping the watchdog...");
-            watchdog.Stop();
+            Console.WriteLine("Stopping the watchdogs...");
+
+            foreach (var watchdog in watchdogs)
+            {
+                watchdog.Stop();
+            }
 
             Console.WriteLine("Press any key to exit");
             Console.ReadKey();
+            
+        }
+
+        /// <summary>
+        /// Creates a watch dog that writes to console when the process is started or terminated
+        /// </summary>
+        private static ProcessWatchdog CreateLoggingWatchDog(string processName)
+        {
+            var watchdog = new ProcessWatchdog(processName);
+            watchdog.OnProcessOpened += () => { Console.WriteLine($"{processName} is running"); };
+            watchdog.OnProcessClosed += () => { Console.WriteLine($"{processName} is terminated"); };
+
+            return watchdog;
         }
     }
 }

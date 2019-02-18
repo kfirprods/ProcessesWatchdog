@@ -1,6 +1,8 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using ThreadState = System.Threading.ThreadState;
 
 namespace ProcessesWatchdog
 {
@@ -11,16 +13,17 @@ namespace ProcessesWatchdog
         // Default sleep time to minimize CPU usage
         private const int DefaultWorkerSleepTime = 1500;
 
+        // The thread is static because we only want to have one thread polling the system processes
+        private static Thread _watchdogWorkerThread;
+        private static List<ProcessWatchdog> _registeredWatchdogs;
+        private static readonly object RegisteredWatchdogsLock = new object();
+
         public event ProcessStatusChanged OnProcessOpened;
         public event ProcessStatusChanged OnProcessClosed;
 
         private readonly string _processName;
         private readonly int _workerThreadSleepTime;
-        private readonly Thread _watchdogWorkerThread;
-
-        // Is the watchdog itself running?
-        private bool _isRunning;
-
+        
         // Is the process currently open?
         private bool _isProcessCurrentlyOpen;
 
@@ -34,47 +37,85 @@ namespace ProcessesWatchdog
         {
             this._processName = processName;
             this._workerThreadSleepTime = workerThreadSleepTime;
-            this._watchdogWorkerThread = new Thread(ProcessWatchdogWorker) { IsBackground = true };
+
+            lock (RegisteredWatchdogsLock)
+            {
+                if (_watchdogWorkerThread == null)
+                    _watchdogWorkerThread = new Thread(ProcessWatchdogWorker) {IsBackground = true};
+
+                if (_registeredWatchdogs == null)
+                    _registeredWatchdogs = new List<ProcessWatchdog>();
+            }
         }
         
         public void Start()
         {
-            if (this._isRunning) return;
+            lock (RegisteredWatchdogsLock)
+            {
+                _registeredWatchdogs.Add(this);
 
-            this._isRunning = true;
-            this._watchdogWorkerThread.Start();
+                if (_watchdogWorkerThread.ThreadState == ThreadState.Stopped)
+                    _watchdogWorkerThread = new Thread(ProcessWatchdogWorker) { IsBackground = true };
+
+                if (_watchdogWorkerThread.ThreadState != ThreadState.Background)
+                    _watchdogWorkerThread.Start();
+            }
         }
 
         public void Stop()
         {
-            this._isRunning = false;
-            this._watchdogWorkerThread.Join();
-        }
-
-        private static bool IsProcessRunning(string processName)
-        {
-            var runningProcesses = Process.GetProcesses();
-            return runningProcesses.Any(process => process.ProcessName == processName);
-        }
-
-        private void ProcessWatchdogWorker()
-        {
-            while (this._isRunning)
+            lock (RegisteredWatchdogsLock)
             {
-                var isProcessOpen = IsProcessRunning(this._processName);
+                _registeredWatchdogs.Remove(this);
 
-                if (isProcessOpen && !this._isProcessCurrentlyOpen)
+                if (_registeredWatchdogs.Count == 0 && _watchdogWorkerThread.ThreadState == ThreadState.Background)
+                    _watchdogWorkerThread.Join();
+            }
+        }
+
+        private void Update(IEnumerable<Process> runningProcesses)
+        {
+            var isProcessOpen = runningProcesses.Any(process => process.ProcessName.Equals(this._processName));
+
+            if (isProcessOpen && !this._isProcessCurrentlyOpen)
+            {
+                this._isProcessCurrentlyOpen = true;
+                this.OnProcessOpened?.Invoke();
+            }
+            else if (!isProcessOpen && _isProcessCurrentlyOpen)
+            {
+                this._isProcessCurrentlyOpen = false;
+                this.OnProcessClosed?.Invoke();
+            }
+        }
+
+        private static int GetWatchdogsCountSafe()
+        {
+            lock (RegisteredWatchdogsLock)
+            {
+                return _registeredWatchdogs.Count;
+            }
+        }
+        
+        private static void ProcessWatchdogWorker()
+        {
+            while (GetWatchdogsCountSafe() > 0)
+            {
+                int minimalSleepTime;
+
+                lock (RegisteredWatchdogsLock)
                 {
-                    this._isProcessCurrentlyOpen = true;
-                    this.OnProcessOpened?.Invoke();
-                }
-                else if (!isProcessOpen && _isProcessCurrentlyOpen)
-                {
-                    this._isProcessCurrentlyOpen = false;
-                    this.OnProcessClosed?.Invoke();
+                    var runningProcesses = Process.GetProcesses();
+                    
+                    foreach (var watchdog in _registeredWatchdogs)
+                    {
+                        watchdog.Update(runningProcesses);
+                    }
+                    
+                    minimalSleepTime = _registeredWatchdogs.Min(watchdog => watchdog._workerThreadSleepTime);
                 }
 
-                Thread.Sleep(this._workerThreadSleepTime);
+                Thread.Sleep(minimalSleepTime);
             }
         }
     }

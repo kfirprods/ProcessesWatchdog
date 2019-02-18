@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>Kfir Eichenblat</authors>
+    <owners>Kfir Eichenblat</owners>
+    <projectUrl>https://github.com/kfirprods/ProcessesWatchdog</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <description>A C# library to monitor the opening and closing of specific Windows processes</description>
+    <releaseNotes>Improved performance when monitoring many processes</releaseNotes>
+    <copyright>Copyright 2019</copyright>
+    <tags>process processes win32process windows processwatchdog processeswatchdog processmonitor monitor monitoring processwatch watchprocess watch watches</tags>
+  </metadata>
+</package>
