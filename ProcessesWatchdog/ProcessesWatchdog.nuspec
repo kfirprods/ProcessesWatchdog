@@ -10,7 +10,9 @@
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <license type="expression">MIT</license>
     <description>A C# library to monitor the opening and closing of specific Windows processes</description>
-    <releaseNotes>Improved performance when monitoring many processes</releaseNotes>
+    <releaseNotes>
+    	OnProcessOpened now requires the callback to accept the PID (this breaks compatibility, hence the change in major version)
+    </releaseNotes>
     <copyright>Copyright 2019</copyright>
     <tags>process processes win32process windows processwatchdog processeswatchdog processmonitor monitor monitoring processwatch watchprocess watch watches</tags>
   </metadata>

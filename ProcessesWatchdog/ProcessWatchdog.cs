@@ -6,7 +6,9 @@ using ThreadState = System.Threading.ThreadState;
 
 namespace ProcessesWatchdog
 {
-    public delegate void ProcessStatusChanged();
+    public delegate void ProcessOpenedEventHandler(int processId);
+
+    public delegate void ProcessClosedEventHandler();
 
     public class ProcessWatchdog
     {
@@ -18,8 +20,8 @@ namespace ProcessesWatchdog
         private static List<ProcessWatchdog> _registeredWatchdogs;
         private static readonly object RegisteredWatchdogsLock = new object();
 
-        public event ProcessStatusChanged OnProcessOpened;
-        public event ProcessStatusChanged OnProcessClosed;
+        public event ProcessOpenedEventHandler OnProcessOpened;
+        public event ProcessClosedEventHandler OnProcessClosed;
 
         private readonly string _processName;
         private readonly int _workerThreadSleepTime;
@@ -75,12 +77,13 @@ namespace ProcessesWatchdog
 
         private void Update(IEnumerable<Process> runningProcesses)
         {
-            var isProcessOpen = runningProcesses.Any(process => process.ProcessName.Equals(this._processName));
+            var matchingProcess = runningProcesses.FirstOrDefault(process => process.ProcessName.Equals(this._processName));
+            var isProcessOpen = matchingProcess != null;
 
             if (isProcessOpen && !this._isProcessCurrentlyOpen)
             {
                 this._isProcessCurrentlyOpen = true;
-                this.OnProcessOpened?.Invoke();
+                this.OnProcessOpened?.Invoke(matchingProcess.Id);
             }
             else if (!isProcessOpen && _isProcessCurrentlyOpen)
             {
