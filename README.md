@@ -47,7 +47,7 @@ namespace ProcessesWatchdogSample
         private static ProcessWatchdog CreateLoggingWatchDog(string processName)
         {
             var watchdog = new ProcessWatchdog(processName);
-            watchdog.OnProcessOpened += () => { Console.WriteLine($"{processName} is running"); };
+            watchdog.OnProcessOpened += (pid) => { Console.WriteLine($"{processName} is running with PID {pid}"); };
             watchdog.OnProcessClosed += () => { Console.WriteLine($"{processName} is terminated"); };
 
             return watchdog;
